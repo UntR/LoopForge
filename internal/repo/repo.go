@@ -146,6 +146,12 @@ type RunnersRepo struct {
 // ConnectorsRepo owns portable device and per-Agent enrollment identities.
 type ConnectorsRepo struct{ *deps }
 
+// ConnectorTasksRepo owns typed portable delegation tasks, attempts and results.
+type ConnectorTasksRepo struct {
+	*deps
+	connectors *ConnectorsRepo
+}
+
 // DeliveryRepo owns MR delivery state and the delivery locking that follows.
 type DeliveryRepo struct {
 	*deps
@@ -182,6 +188,7 @@ type Store struct {
 	*RunsRepo
 	*RunnersRepo
 	*ConnectorsRepo
+	*ConnectorTasksRepo
 	*DeliveryRepo
 	*AnalyticsRepo
 	*InsightsRepo
@@ -215,6 +222,7 @@ func newStore(db *gorm.DB) *Store {
 	s.RunsRepo = &RunsRepo{deps: d, assistant: s.AssistantRepo, issues: s.IssuesRepo, catalog: s.CatalogRepo, notifications: s.NotificationsRepo}
 	s.RunnersRepo = &RunnersRepo{deps: d}
 	s.ConnectorsRepo = &ConnectorsRepo{deps: d}
+	s.ConnectorTasksRepo = &ConnectorTasksRepo{deps: d, connectors: s.ConnectorsRepo}
 	s.DeliveryRepo = &DeliveryRepo{deps: d, issues: s.IssuesRepo, tasks: s.TasksRepo, catalog: s.CatalogRepo, runs: s.RunsRepo}
 	s.InsightsRepo = &InsightsRepo{deps: d}
 	s.AnalyticsRepo = &AnalyticsRepo{deps: d, runs: s.RunsRepo, catalog: s.CatalogRepo, delivery: s.DeliveryRepo, issues: s.IssuesRepo, tasks: s.TasksRepo, projects: s.ProjectsRepo, insights: s.InsightsRepo}

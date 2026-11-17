@@ -1,0 +1,66 @@
+name: portable-connectors
+on:
+  push:
+    branches: [feat/nas-service]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: portable-connectors-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux-mysql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: connector-fixture-only
+          MYSQL_ROOT_HOST: '%'
+          MYSQL_DATABASE: connector_fixture
+        ports:
+          - '3306/tcp'
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pconnector-fixture-only --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=30
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+      - name: Build and test the embedded frontend
+        run: bash scripts/build-chatbot.sh
+      - name: Protocol, owner scope, real MySQL locks and recovery
+        env:
+          LOOPFORGE_CONNECTOR_MYSQL_TEST_DSN: "root:connector-fixture-only@tcp(127.0.0.1:${{ job.services.mysql.ports['3306'] }})/connector_fixture?parseTime=true"
+          LOOPFORGE_CONNECTOR_MYSQL_TEST_ALLOW_CREATE: '1'
+          AGENTFLOW_TEST_MYSQL_DSN: ''
+        run: go test -race -p=2 ./internal/domain ./internal/repo ./internal/httpapi ./internal/connect ./cmd/loopforge-connect -run '^Test(Connector|NewConnector|Bind|Client|StateLock|SelectAgents|Inspect|VersionOutput|RejectTask)' -count=1 -timeout=300s
+      - name: Vet affected packages and check public content
+        run: |
+          go vet ./internal/domain ./internal/repo ./internal/httpapi ./internal/connect ./cmd/loopforge-connect
+          python3 scripts/check-public.py
+          python3 -m unittest discover -s deploy/synology -v
+          git diff --check
+      - name: Build Linux service binary
+        run: go build -trimpath -o "$RUNNER_TEMP/agentflow" ./cmd/agentflow
+  windows-enrollment:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Native Windows enrollment, DACL and file-lock tests (synthetic only)
+        run: go test ./internal/connect ./cmd/loopforge-connect -count=1 -timeout=180s
+      - name: Build Windows connector
+        run: go build -trimpath -o "$env:RUNNER_TEMP/loopforge-connect.exe" ./cmd/loopforge-connect

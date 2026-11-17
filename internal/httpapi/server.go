@@ -86,6 +86,7 @@ type Server struct {
 	stream          *streamHandlers   // stream.go
 	runners         *runnersHandlers  // runners.go
 	connectors      *connectorsHandlers
+	connectorTasks  *connectorTasksHandlers
 	schedule        *scheduleHandlers // schedule.go（align.go 并入）
 	tokens          *tokenHandlers    // auth_tokens.go
 	syncAPI         *syncHandlers     // tracker.go
@@ -151,6 +152,7 @@ func newWithNotifications(s *repo.Store, e *engine.Engine, syncSvc *tracker.Serv
 	api := &Server{
 		deps:            d,
 		connectors:      &connectorsHandlers{deps: d},
+		connectorTasks:  &connectorTasksHandlers{deps: d},
 		notifications:   &notificationHandlers{deps: d, service: notifications},
 		auth:            &authHandlers{deps: d},
 		github:          newGitHubHandlers(d),
@@ -587,6 +589,16 @@ func newWithNotifications(s *repo.Store, e *engine.Engine, syncSvc *tracker.Serv
 	g.POST("/runners/connectors/register", api.connectors.enroll)
 	g.GET("/runners/connectors/self", api.connectors.deviceSelf)
 	g.GET("/runners/connectors/agent", api.connectors.agentSelf)
+
+	// Typed portable delegation uses user scope for management and per-Agent
+	// credentials plus fenced attempts for the outbound worker protocol.
+	g.GET("/api/connector-tasks", api.connectorTasks.collection)
+	g.POST("/api/connector-tasks", api.connectorTasks.collection)
+	g.GET("/api/connector-tasks/:id", api.connectorTasks.detail)
+	g.GET("/api/connector-tasks/:id/events", api.connectorTasks.events)
+	g.POST("/api/connector-tasks/:id/cancel", api.connectorTasks.cancel)
+	g.POST("/runners/connector-tasks/claim", api.connectorTasks.claim)
+	g.POST("/runners/connector-tasks/:id/:action", api.connectorTasks.action)
 
 	// --- runner management plane ---
 	g.GET("/api/runners", api.runners.runners)

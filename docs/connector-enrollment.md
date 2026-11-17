@@ -3,7 +3,8 @@
 The portable connector enrolls one machine plus independent Codex, DSH and
 MiniMax Code identities. It is separate from legacy Runner task execution:
 **registered identities are not task-ready workers**. Existing Runner dispatch
-and isolation are unchanged. A2A, native task adapters, full-workspace handoff
+and isolation are unchanged. The typed queue and transport library are described in
+[the delegation protocol](connector-tasks.md); they do not launch native Agents. A2A, native task adapters, full-workspace handoff
 and production acceptance remain release blockers.
 
 ## User flow

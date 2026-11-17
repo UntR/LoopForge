@@ -41,6 +41,15 @@ type BindOptions struct {
 	Agents                                 []domain.ConnectorAgentEnrollment
 }
 
+// RequestStatusError exposes only an HTTP status, never a remote error body.
+// Workers can distinguish revocation from transient failures without logging
+// credentials, prompts, filesystem paths or a server's arbitrary diagnostics.
+type RequestStatusError struct{ StatusCode int }
+
+func (err *RequestStatusError) Error() string {
+	return fmt.Sprintf("connector request rejected (HTTP %d)", err.StatusCode)
+}
+
 type Client struct {
 	server string
 	http   *http.Client
@@ -226,6 +235,10 @@ func (client *Client) identity(ctx context.Context, credential string) (domain.C
 }
 
 func (client *Client) request(ctx context.Context, method, path, token string, body io.Reader, result any) (int, error) {
+	return client.requestBounded(ctx, method, path, token, body, result, 64<<10)
+}
+
+func (client *Client) requestBounded(ctx context.Context, method, path, token string, body io.Reader, result any, maximum int64) (int, error) {
 	request, err := http.NewRequestWithContext(ctx, method, client.server+path, body)
 	if err != nil {
 		return 0, errors.New("cannot create connector request")
@@ -240,11 +253,11 @@ func (client *Client) request(ctx context.Context, method, path, token string, b
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-		return response.StatusCode, fmt.Errorf("connector request rejected (HTTP %d)", response.StatusCode)
+		return response.StatusCode, &RequestStatusError{StatusCode: response.StatusCode}
 	}
-	limited := &io.LimitedReader{R: response.Body, N: 64<<10 + 1}
+	limited := &io.LimitedReader{R: response.Body, N: maximum + 1}
 	data, err := io.ReadAll(limited)
-	if err != nil || len(data) > 64<<10 || json.Unmarshal(data, result) != nil {
+	if err != nil || int64(len(data)) > maximum || json.Unmarshal(data, result) != nil {
 		return response.StatusCode, errors.New("invalid connector response")
 	}
 	return response.StatusCode, nil
