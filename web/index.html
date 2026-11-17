@@ -747,6 +747,33 @@
         <div class="heading-actions"><button id="refreshRunners" class="button ghost" type="button">刷新</button></div>
       </div>
 
+      <div class="runner-onboarding panel" id="portableConnectorPanel">
+        <div class="panel-heading"><h2>统一 Agent 身份接入</h2><span class="runner-platforms">macOS / Linux / Windows</span></div>
+        <p>注册本机已有的 Codex、DSH、MiniMax Code。当前为身份接入预览，尚不执行任务。</p>
+        <label for="connectorPlatform">下载接入程序</label>
+        <select id="connectorPlatform">
+          <option value="darwin/arm64">macOS · Apple Silicon</option>
+          <option value="darwin/amd64">macOS · Intel</option>
+          <option value="linux/amd64">Linux · x64</option>
+          <option value="linux/arm64">Linux · ARM64</option>
+          <option value="windows/amd64">Windows · x64</option>
+          <option value="windows/arm64">Windows · ARM64</option>
+        </select>
+        <a id="connectorDownload" class="button small" href="/runners/loopforge-connect?os=darwin&amp;arch=arm64" download>下载</a>
+        <p id="connectorTransportNotice" role="status"></p>
+        <div class="runner-command-box">
+          <pre id="connectorCommand" class="mono"></pre>
+          <button id="copyConnectorCommand" class="button dark small" type="button">复制命令</button>
+        </div>
+        <p>在下载目录运行命令，再粘贴下方接入码。不会安装 Agent，也不会读取其登录文件。</p>
+        <button id="createConnectorCode" class="button small" type="button">生成一次性接入码</button>
+        <code id="connectorCode"></code>
+        <span id="connectorCodeExpiry" role="status"></span>
+        <button id="copyConnectorCode" class="button small" type="button" disabled>复制接入码</button>
+        <div id="portableConnectorList" aria-live="polite"></div>
+      </div>
+
+
       <div class="runner-onboarding panel">
         <div class="panel-heading"><h2>接入新机器</h2><span class="runner-platforms">macOS / Linux</span></div>
         <ol class="runner-steps">
@@ -769,6 +796,7 @@
           </details>
         </div>
       </div>
+
 
       <div class="runner-list-heading"><h2>我的机器</h2><span class="runner-count" id="runnerCount">0</span><p class="runner-pool-status" id="runnerPoolStatus" aria-live="polite"></p></div>
       <aside id="runnerCLIUpdateNotice" class="runner-cli-update-notice" aria-labelledby="runnerCLIUpdateNoticeTitle"><b id="runnerCLIUpdateNoticeTitle">Agent CLI 需自行升级：</b>平台不会代为升级，版本过旧或无模型权限会导致任务失败。</aside>

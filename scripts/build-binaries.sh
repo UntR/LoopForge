@@ -48,7 +48,9 @@ build() {
   go build "${flags[@]}" -o "$staging/" "$@" || { rm -rf "$staging"; return 1; }
   local package
   for package in "$@"; do
-    mv "$staging/${package##*/}" "$output/${package##*/}$suffix"
+    local filename="${package##*/}"
+    [[ ${GOOS:-} != windows ]] || filename="$filename.exe"
+    mv "$staging/$filename" "$output/${package##*/}$suffix"
   done
   rmdir "$staging"
 }
@@ -61,6 +63,14 @@ if [[ $mode != platform ]]; then
     for target_arch in amd64 arm64; do
       printf '\nBuilding agentflow-runner and agentflow-gate-mcp (%s/%s)…\n' "$target_os" "$target_arch"
       GOOS="$target_os" GOARCH="$target_arch" build "-$target_os-$target_arch" ./cmd/agentflow-runner ./cmd/agentflow-gate-mcp
+    done
+  done
+  # The portable connector has no POSIX runtime dependency and also ships on Windows.
+  for target_os in linux darwin windows; do
+    for target_arch in amd64 arm64; do
+      extension=""
+      [[ "$target_os" != windows ]] || extension=".exe"
+      GOOS="$target_os" GOARCH="$target_arch" build "-$target_os-$target_arch$extension" ./cmd/loopforge-connect
     done
   done
 fi

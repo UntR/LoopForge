@@ -85,6 +85,7 @@ type Server struct {
 	browser         *browserHandlers  // browser.go
 	stream          *streamHandlers   // stream.go
 	runners         *runnersHandlers  // runners.go
+	connectors      *connectorsHandlers
 	schedule        *scheduleHandlers // schedule.go（align.go 并入）
 	tokens          *tokenHandlers    // auth_tokens.go
 	syncAPI         *syncHandlers     // tracker.go
@@ -149,6 +150,7 @@ func newWithNotifications(s *repo.Store, e *engine.Engine, syncSvc *tracker.Serv
 	}
 	api := &Server{
 		deps:            d,
+		connectors:      &connectorsHandlers{deps: d},
 		notifications:   &notificationHandlers{deps: d, service: notifications},
 		auth:            &authHandlers{deps: d},
 		github:          newGitHubHandlers(d),
@@ -577,6 +579,15 @@ func newWithNotifications(s *repo.Store, e *engine.Engine, syncSvc *tracker.Serv
 	g.Any("/api/schedule-jobs/:id", api.schedule.scheduleJob)
 	g.POST("/api/schedule-jobs/:id/run", api.schedule.scheduleJobRun)
 
+	// Portable connector enrollment: management remains behind user auth;
+	// the machine plane validates one-time codes or scoped device/Agent tokens.
+	g.POST("/api/connectors/bind-codes", api.connectors.issueCode)
+	g.GET("/api/connectors", api.connectors.list)
+	g.POST("/api/connectors/:kind/:id/revoke", api.connectors.revoke)
+	g.POST("/runners/connectors/register", api.connectors.enroll)
+	g.GET("/runners/connectors/self", api.connectors.deviceSelf)
+	g.GET("/runners/connectors/agent", api.connectors.agentSelf)
+
 	// --- runner management plane ---
 	g.GET("/api/runners", api.runners.runners)
 	g.POST("/api/runners/register", api.runners.runnerRegister)
@@ -605,6 +616,7 @@ func newWithNotifications(s *repo.Store, e *engine.Engine, syncSvc *tracker.Serv
 	// Machine plane: this prefix is safe to exempt from gateway interactive
 	// login. Public install assets are read-only; daemon APIs authenticate with
 	// one-time bind codes or runner session tokens instead of a user identity.
+	g.GET("/runners/loopforge-connect", serveConnectorBinary)
 	g.GET("/runners/install.sh", serveBindCLIScript)
 	g.GET("/runners/agentflow-runner", serveRunnerBinary)
 	g.GET("/runners/agentflow-gate-mcp", serveGateMCPBinary)

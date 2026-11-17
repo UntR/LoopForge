@@ -44,6 +44,7 @@ services:
       AGENTFLOW_LOCAL_SANDBOX: docker
       AGENTFLOW_ISOLATED_IMAGE: ${LOOPFORGE_IMAGE:-ghcr.io/tencent/loopforge:0.3.8}
       HOME: ${LOOPFORGE_DATA_DIR:?Run scripts/configure.sh first}/home
+      AGENTFLOW_CONNECTOR_BINARY: /app/bin/loopforge-connect-{os}-{arch}{ext}
       AGENTFLOW_RUNNER_BINARY: /app/bin/agentflow-runner-{os}-{arch}
       AGENTFLOW_GATE_MCP_BINARY: /app/bin/agentflow-gate-mcp-{os}-{arch}
       # Claude Code is not bundled; it is installed from npm here on first use.

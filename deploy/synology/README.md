@@ -57,12 +57,11 @@ python3 -m unittest discover -s deploy/synology -v
 go test ./internal/connect ./cmd/loopforge-connect
 ```
 
-The current portable connector has only the `doctor` subcommand. It identifies
-Codex (`codex`), DeepSeek Harness (`dsh`) and MiniMax Code (`mcode`) on PATH
-using bounded `--version` probes. It does not register, install or launch tasks,
-and reports `connected: false`. `mmx` is a different CLI and is not substituted
-for MiniMax Code. The future binding/worker protocol must remain separate from
-this local preflight.
+The portable connector provides `doctor` and `bind`. Enrollment establishes
+independent device/Agent identities and supports interrupted-response recovery;
+it does not claim or execute tasks. See [the enrollment contract](../../docs/connector-enrollment.md)
+for the user flow, API, credential boundaries and remaining acceptance work.
+`mmx` is a different CLI and is not substituted for MiniMax Code.
 
 MiniMax's official headless interface is documented at
 https://code.minimax.io/docs/cli/automation. Integration must preserve its

@@ -1,4 +1,4 @@
-// Package connect contains the portable, local-only connector preflight.
+// Package connect contains portable enrollment and local CLI inventory.
 // Keep it independent of the platform runtime so Windows builds do not
 // inherit POSIX sandbox and process-control dependencies.
 package connect

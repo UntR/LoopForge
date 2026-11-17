@@ -1,3 +1,5 @@
+> **Fork 开发分支：** 正在完成群晖控制面和 Codex / DSH / MiniMax Code 统一接入。身份注册已可进行合成验证，任务执行、完整工作区交接和生产验收尚未完成。请先阅读[群晖部署准备](deploy/synology/README.md)与[接入协议](docs/connector-enrollment.md)，不要将上游快速安装步骤当作本分支的群晖发布安装器。
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-zh-dark.svg">

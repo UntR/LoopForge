@@ -1,3 +1,5 @@
+> **Fork development branch:** Synology control-plane work and portable Codex/DSH/MiniMax Code enrollment are in progress. Enrollment is available for synthetic testing; task execution, full-workspace handoff and production acceptance are unfinished. Read [NAS deployment preparation](deploy/synology/README.md) and [the enrollment contract](docs/connector-enrollment.md) before using the upstream quick start.
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-en-dark.svg">

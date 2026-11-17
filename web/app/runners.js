@@ -5,10 +5,12 @@ let runnerRefreshTimer=null;
 async function refreshRunners(silent){
   try{
     await ensureRunnerBindCode(silent);
-    const [runners,def]=await Promise.all([
+    const [runners,def,connectors]=await Promise.all([
       api('/api/runners?mine=1',{silent:true}).catch(()=>[]),
-      api('/api/runners/default',{silent:true}).catch(()=>({runnerId:''}))
+      api('/api/runners/default',{silent:true}).catch(()=>({runnerId:''})),
+      api('/api/connectors',{silent:true}).catch(()=>[])
     ]);
+    state.portableConnectors=Array.isArray(connectors)?connectors:[];
     state.runners=runners||[];
     state.defaultRunnerId=def?.runnerId||'';
     state.cloudPool=def?.cloudPool||null;
@@ -97,6 +99,7 @@ function runnerCopyCommand(btn,text,message){
   navigator.clipboard.writeText(text).then(done).catch(()=>toast('复制失败，请手动选择复制'));
 }
 function renderRunnersView(){
+  renderPortableConnectors();
   const list=$('#runnersList');if(!list)return;
   const host=location.host;
   const httpsOrigin=`https://${host}`,httpOrigin=`http://${host}`;
@@ -239,4 +242,60 @@ async function setRunnerRuntimeAuth(runnerId,provider,authMode){
     const ready=runnerPersonalCredentialConfigured(provider);
     toast(authMode==='personal'?(ready?'将使用个人配置中的 API 凭证':'已切换；请先到个人配置补充该 CLI 的 API Key'):'将使用执行机器上的 CLI 登录态',ready||authMode!=='personal'?'ok':undefined);refreshRunners(true);
   }catch(err){toast(err.message);refreshRunners(true)}
+}
+
+
+// Portable enrollment deliberately uses a separate code and identities from
+// legacy Runners. Never embed the one-time code in a shell command or URL.
+function renderPortableConnectors(){
+  if(!$('#portableConnectorPanel'))return;
+  const selection=$('#connectorPlatform'),download=$('#connectorDownload'),command=$('#connectorCommand');
+  const [os,arch]=String(selection?.value||'darwin/arm64').split('/');
+  const allowed=['darwin/arm64','darwin/amd64','linux/amd64','linux/arm64','windows/amd64','windows/arm64'];
+  if(!allowed.includes(`${os}/${arch}`))return;
+  download.href=`/runners/loopforge-connect?os=${os}&arch=${arch}`;
+  download.download=os==='windows'?'loopforge-connect.exe':'loopforge-connect';
+  const localHTTP=location.protocol==='http:'&&['127.0.0.1','[::1]'].includes(location.hostname);
+  const transportOK=location.protocol==='https:'||localHTTP;
+  $('#connectorTransportNotice').textContent=transportOK?'':'请先通过 HTTPS 打开平台，再生成接入码。';
+  command.textContent=os==='windows'?`.\\loopforge-connect.exe bind --server ${location.origin}`:`chmod +x ./loopforge-connect && ./loopforge-connect bind --server ${location.origin}`;
+  selection.onchange=()=>renderPortableConnectors();
+  const copyCommand=$('#copyConnectorCommand');
+  copyCommand.disabled=!transportOK;
+  copyCommand.onclick=()=>runnerCopyCommand(copyCommand,command.textContent,'已复制接入命令');
+  const create=$('#createConnectorCode');
+  create.disabled=!transportOK||!!state.connectorCodeIssuing;
+  create.onclick=()=>createPortableConnectorCode();
+  const code=state.connectorCode;
+  const current=code&&new Date(code.expiresAt).getTime()>Date.now();
+  $('#connectorCode').textContent=current?code.code:'';
+  $('#connectorCodeExpiry').textContent=current?`有效至 ${new Date(code.expiresAt).toLocaleTimeString()}`:code?'已过期，请生成新码':'';
+  const copyCode=$('#copyConnectorCode');
+  copyCode.disabled=!current;
+  copyCode.onclick=()=>{if(state.connectorCode&&new Date(state.connectorCode.expiresAt).getTime()>Date.now())runnerCopyCommand(copyCode,state.connectorCode.code,'已复制一次性接入码')};
+  const names={'codex':'Codex','dsh':'DSH','minimax-code':'MiniMax Code'};
+  const list=$('#portableConnectorList');
+  list.innerHTML=(state.portableConnectors||[]).map(identity=>{
+    const device=identity.device||{};
+    const status=device.revoked?'已撤销':new Date(device.expiresAt).getTime()<=Date.now()?'已过期':'已注册身份';
+    return `<article class="runner-card"><h3>${escapeHTML(device.name||device.id)}</h3><p>${escapeHTML(runnerOSLabels[device.os]||device.os)} · ${escapeHTML(status)}</p><ul>${(identity.agents||[]).map(agent=>`<li>${escapeHTML(names[agent.provider]||agent.provider)} · ${escapeHTML(agent.id)} · ${agent.revoked||device.revoked?'已撤销':'已注册'} ${agent.revoked||device.revoked?'':`<button class="button small" type="button" data-connector-agent-revoke="${escapeHTML(agent.id)}">撤销</button>`}</li>`).join('')}</ul>${device.revoked?'':`<button class="button small danger-outline" type="button" data-connector-device-revoke="${escapeHTML(device.id)}">撤销整台机器</button>`}</article>`;
+  }).join('')||'<p>还没有注册的 Agent 身份。</p>';
+  list.querySelectorAll('[data-connector-agent-revoke]').forEach(button=>button.onclick=()=>revokePortableConnector('agents',button.dataset.connectorAgentRevoke));
+  list.querySelectorAll('[data-connector-device-revoke]').forEach(button=>button.onclick=()=>revokePortableConnector('devices',button.dataset.connectorDeviceRevoke));
+}
+async function createPortableConnectorCode(){
+  if(state.connectorCodeIssuing)return;
+  state.connectorCodeIssuing=true;renderPortableConnectors();
+  try{
+    const result=await api('/api/connectors/bind-codes',{method:'POST',body:'{}'});
+    if(!result?.code||!result?.expiresAt)throw new Error('接入码响应不完整');
+    state.connectorCode=result;
+  }catch(error){toast(error.message)}
+  finally{state.connectorCodeIssuing=false;renderPortableConnectors()}
+}
+async function revokePortableConnector(kind,id){
+  if(!['agents','devices'].includes(kind))return;
+  const message=kind==='devices'?'撤销后，这台机器及其全部 Agent 的接入凭证立即失效。':'撤销后，该 Agent 的接入凭证立即失效。';
+  if(!await afConfirm({title:'撤销接入身份',message,confirmText:'撤销',isDanger:true}))return;
+  try{await api(`/api/connectors/${kind}/${encodeURIComponent(id)}/revoke`,{method:'POST',body:'{}'});toast('已撤销','ok');await refreshRunners(true)}catch(error){toast(error.message)}
 }

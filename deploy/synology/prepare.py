@@ -51,6 +51,7 @@ def prepare(output, data_root, image, bind='127.0.0.1', port=8090, project='loop
         'AGENTFLOW_CLARIFY_SESSION_DIR': '/data/clarify',
         'AGENTFLOW_CONVERSATION_DIR': '/data/conversations',
         'AGENTFLOW_PLATFORM_MCP_URL': 'http://platform:8080',
+        'AGENTFLOW_CONNECTOR_BINARY': '/app/bin/loopforge-connect-{os}-{arch}{ext}',
         'AGENTFLOW_RUNNER_BINARY': '/app/bin/agentflow-runner-{os}-{arch}',
         'AGENTFLOW_GATE_MCP_BINARY': '/app/bin/agentflow-gate-mcp-{os}-{arch}',
         'HOME': '/data/home',
@@ -100,7 +101,7 @@ def prepare(output, data_root, image, bind='127.0.0.1', port=8090, project='loop
                 'Prepared configuration only; not a deployed or service-ready installation.\n'
                 'Requires HTTPS reverse proxy, reviewed initial account provisioning and schema/catalog setup.\n'
                 'No Docker socket or NAS share root is mounted. Execution requires external runners.\n'
-                'This profile does not implement full snapshot handoff, A2A or Windows onboarding.\n'
+                'This profile does not implement full snapshot handoff, A2A or cross-platform task acceptance.\n'
                 'Keep .env private; do not commit or paste it.\n'
             ),
         }
