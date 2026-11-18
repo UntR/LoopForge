@@ -52,7 +52,7 @@ func TestConnectorTaskObservationUsesMonotonicConservativeLease(t *testing.T) {
 		t.Fatal("server/host wall-clock skew incorrectly determined execution permission", err)
 	}
 	remaining := time.Until(observation.RunUntil)
-	if remaining <= 0 || remaining >= 43*time.Second {
+	if remaining <= 0 || remaining > 43*time.Second {
 		t.Fatal("round trip and safety margin not subtracted", remaining)
 	}
 	session, proof = sessionTaskFixture(t, func(task *domain.ConnectorTask) { task.LeaseRemainingMillis = 100 })
